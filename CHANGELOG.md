@@ -1,3 +1,8 @@
+## 3.6.0 (Unreleased)
+FEATURES:
+
+* __Added `feature_gates` and `admission_controllers` to cluster kubernetes options__ (#)[]
+
 ## 3.5.0 (Nov 19, 2020)
 
 FEATURES:

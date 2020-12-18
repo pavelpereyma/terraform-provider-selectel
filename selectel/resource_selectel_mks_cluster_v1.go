@@ -131,6 +131,16 @@ func resourceMKSClusterV1() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+			"feature_gates": {
+				Type:     schema.TypeList,
+				Optional: true,
+				ForceNew: false,
+			},
+			"admission_controllers": {
+				Type:     schema.TypeList,
+				Optional: true,
+				ForceNew: false,
+			},
 		},
 	}
 }
@@ -164,6 +174,16 @@ func resourceMKSClusterV1Create(ctx context.Context, d *schema.ResourceData, met
 			"set to false in case of zonal cluster"))
 	}
 
+	featureGates, ok := d.Get("feature_gates").([]string)
+	if !ok {
+		return diag.FromErr(errCreatingObject(objectCluster, fmt.Errorf("\"feature_gates\" should be a string array")))
+	}
+
+	admissionControllers, ok := d.Get("admission_controllers").([]string)
+	if !ok {
+		return diag.FromErr(errCreatingObject(objectCluster, fmt.Errorf("\"feature_gates\" should be a string array")))
+	}
+
 	createOpts := &cluster.CreateOpts{
 		Name:                          d.Get("name").(string),
 		NetworkID:                     d.Get("network_id").(string),
@@ -175,6 +195,8 @@ func resourceMKSClusterV1Create(ctx context.Context, d *schema.ResourceData, met
 		Region:                        region,
 		KubernetesOptions: &cluster.KubernetesOptions{
 			EnablePodSecurityPolicy: enablePodSecurityPolicy,
+			FeatureGates:            featureGates,
+			AdmissionControllers:    admissionControllers,
 		},
 		Zonal: &zonal,
 	}
@@ -240,6 +262,8 @@ func resourceMKSClusterV1Read(ctx context.Context, d *schema.ResourceData, meta 
 	d.Set("enable_autorepair", mksCluster.EnableAutorepair)
 	d.Set("enable_patch_version_auto_upgrade", mksCluster.EnablePatchVersionAutoUpgrade)
 	d.Set("enable_pod_security_policy", mksCluster.KubernetesOptions.EnablePodSecurityPolicy)
+	d.Set("feature_gates", mksCluster.KubernetesOptions.FeatureGates)
+	d.Set("admission_controllers", mksCluster.KubernetesOptions.AdmissionControllers)
 	d.Set("zonal", mksCluster.Zonal)
 
 	return nil
@@ -280,12 +304,21 @@ func resourceMKSClusterV1Update(ctx context.Context, d *schema.ResourceData, met
 		v := d.Get("enable_patch_version_auto_upgrade").(bool)
 		updateOpts.EnablePatchVersionAutoUpgrade = &v
 	}
+
+	kubeOptions := new(cluster.KubernetesOptions)
 	if d.HasChange("enable_pod_security_policy") {
 		v := d.Get("enable_pod_security_policy").(bool)
-		updateOpts.KubernetesOptions = &cluster.KubernetesOptions{
-			EnablePodSecurityPolicy: v,
-		}
+		kubeOptions.EnablePodSecurityPolicy = v
 	}
+	if d.HasChange("feature_gates") {
+		v := d.Get("feature_gates").([]string)
+		kubeOptions.FeatureGates = v
+	}
+	if d.HasChange("admission_controllers") {
+		v := d.Get("admission_controllers").([]string)
+		kubeOptions.AdmissionControllers = v
+	}
+	updateOpts.KubernetesOptions = kubeOptions
 
 	if updateOpts != (cluster.UpdateOpts{}) {
 		log.Print(msgUpdate(objectCluster, d.Id(), updateOpts))

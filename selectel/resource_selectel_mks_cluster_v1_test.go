@@ -245,6 +245,12 @@ resource "selectel_mks_cluster_v1" "cluster_tf_acc_test_1" {
   enable_autorepair                 = false
   enable_patch_version_auto_upgrade = false
   enable_pod_security_policy        = false
+  feature_gates						= [
+		"BoundServiceAccountTokenVolume",
+	]
+  admission_controllers				= [
+		"NamespaceLifecycle",
+	]
 }`, projectName, clusterName, kubeVersion)
 }
 
