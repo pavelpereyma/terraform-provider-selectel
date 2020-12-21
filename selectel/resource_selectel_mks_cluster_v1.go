@@ -132,14 +132,21 @@ func resourceMKSClusterV1() *schema.Resource {
 				Computed: true,
 			},
 			"feature_gates": {
-				Type:     schema.TypeList,
+				Type:     schema.TypeSet,
 				Optional: true,
 				ForceNew: false,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
 			},
 			"admission_controllers": {
-				Type:     schema.TypeList,
+				Type:     schema.TypeSet,
 				Optional: true,
 				ForceNew: false,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Set: schema.HashString,
 			},
 		},
 	}
@@ -174,14 +181,14 @@ func resourceMKSClusterV1Create(ctx context.Context, d *schema.ResourceData, met
 			"set to false in case of zonal cluster"))
 	}
 
-	featureGates, ok := d.Get("feature_gates").([]string)
-	if !ok {
-		return diag.FromErr(errCreatingObject(objectCluster, fmt.Errorf("\"feature_gates\" should be a string array")))
+	featureGates, err := getSetAsStrings(d, featureGatesKey)
+	if err != nil {
+		return diag.FromErr(errCreatingObject(objectCluster, err))
 	}
 
-	admissionControllers, ok := d.Get("admission_controllers").([]string)
-	if !ok {
-		return diag.FromErr(errCreatingObject(objectCluster, fmt.Errorf("\"feature_gates\" should be a string array")))
+	admissionControllers, err := getSetAsStrings(d, admissionControllersKey)
+	if err != nil {
+		return diag.FromErr(errCreatingObject(objectCluster, err))
 	}
 
 	createOpts := &cluster.CreateOpts{
@@ -310,12 +317,18 @@ func resourceMKSClusterV1Update(ctx context.Context, d *schema.ResourceData, met
 		v := d.Get("enable_pod_security_policy").(bool)
 		kubeOptions.EnablePodSecurityPolicy = v
 	}
-	if d.HasChange("feature_gates") {
-		v := d.Get("feature_gates").([]string)
+	if d.HasChange(featureGatesKey) {
+		v, err := getSetAsStrings(d, featureGatesKey)
+		if err != nil {
+			return diag.FromErr(errCreatingObject(objectCluster, err))
+		}
 		kubeOptions.FeatureGates = v
 	}
-	if d.HasChange("admission_controllers") {
-		v := d.Get("admission_controllers").([]string)
+	if d.HasChange(admissionControllersKey) {
+		v, err := getSetAsStrings(d, admissionControllersKey)
+		if err != nil {
+			return diag.FromErr(errCreatingObject(objectCluster, err))
+		}
 		kubeOptions.AdmissionControllers = v
 	}
 	updateOpts.KubernetesOptions = kubeOptions
